@@ -15,6 +15,16 @@ export default {
   // Dashboard
   dashboard: {
     title: '概要',
+    healthScore: {
+      title: '在庫健全性スコア',
+      grade: '評価',
+      factors: {
+        stockCoverage: '在庫カバレッジ',
+        orderFulfillment: '注文履行率',
+        backlogSeverity: 'バックログ深刻度'
+      },
+      lowStockSubtitle: '{totalCount}品目中{lowCount}品目が在庫僅少'
+    },
     kpi: {
       title: '主要業績評価指標',
       inventoryTurnover: '在庫回転率',

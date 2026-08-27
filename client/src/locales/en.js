@@ -15,6 +15,16 @@ export default {
   // Dashboard
   dashboard: {
     title: 'Overview',
+    healthScore: {
+      title: 'Inventory Health Score',
+      grade: 'Grade',
+      factors: {
+        stockCoverage: 'Stock Coverage',
+        orderFulfillment: 'Order Fulfillment',
+        backlogSeverity: 'Backlog Severity'
+      },
+      lowStockSubtitle: '{lowCount} of {totalCount} items low on stock'
+    },
     kpi: {
       title: 'Key Performance Indicators',
       inventoryTurnover: 'Inventory Turnover Rate',
