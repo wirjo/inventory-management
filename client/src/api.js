@@ -137,5 +137,10 @@ export const api = {
 
     const response = await axios.get(`${API_BASE_URL}/reports/monthly-trends?${params.toString()}`)
     return response.data
+  },
+
+  async getInventoryHealthScore() {
+    const response = await axios.get(`${API_BASE_URL}/inventory/health-score`)
+    return response.data
   }
 }

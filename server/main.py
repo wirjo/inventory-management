@@ -168,6 +168,49 @@ def get_inventory(
     """Get all inventory items with optional filtering"""
     return apply_filters(inventory_items, warehouse, category)
 
+@app.get("/api/inventory/health-score")
+def get_inventory_health_score():
+    """Compute a weighted inventory health score from stock coverage, order fulfillment, and backlog severity"""
+    total_items = len(inventory_items)
+    low_stock_count = len([item for item in inventory_items if item["quantity_on_hand"] <= item["reorder_point"]])
+
+    stock_coverage = round(((total_items - low_stock_count) / total_items) * 100) if total_items else 0
+
+    delivered_orders = len([order for order in orders if order["status"] == "Delivered"])
+    order_fulfillment = round((delivered_orders / len(orders)) * 100) if orders else 0
+
+    if backlog_items:
+        avg_days_delayed = sum(item["days_delayed"] for item in backlog_items) / len(backlog_items)
+        backlog_severity = round(100 - min(avg_days_delayed, 100))
+    else:
+        backlog_severity = 100
+
+    factors = [
+        {"label": "Stock Coverage", "value": stock_coverage, "weight": 40},
+        {"label": "Order Fulfillment", "value": order_fulfillment, "weight": 30},
+        {"label": "Backlog Severity", "value": backlog_severity, "weight": 30},
+    ]
+    score = round(sum(f["value"] * f["weight"] for f in factors) / 100)
+
+    if score >= 90:
+        grade = "A"
+    elif score >= 75:
+        grade = "B"
+    elif score >= 60:
+        grade = "C"
+    elif score >= 40:
+        grade = "D"
+    else:
+        grade = "F"
+
+    return {
+        "score": score,
+        "grade": grade,
+        "factors": factors,
+        "low_stock_count": low_stock_count,
+        "total_items": total_items,
+    }
+
 @app.get("/api/inventory/{item_id}", response_model=InventoryItem)
 def get_inventory_item(item_id: str):
     """Get a specific inventory item"""

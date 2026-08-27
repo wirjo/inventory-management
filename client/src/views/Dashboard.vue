@@ -7,6 +7,39 @@
     <div v-if="loading" class="loading">{{ t('common.loading') }}</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else>
+      <!-- Inventory Health Score -->
+      <div class="health-score-section">
+        <div class="card health-score-card">
+          <div v-if="healthScoreLoading" class="health-score-loading">{{ t('common.loading') }}</div>
+          <div v-else-if="healthScoreError" class="health-score-error">{{ healthScoreError }}</div>
+          <div v-else class="health-score-content">
+            <div class="health-score-main">
+              <div class="health-score-number-group">
+                <span class="health-score-number">{{ healthScore.score }}</span>
+                <span :class="['health-score-badge', healthScoreGradeClass]">{{ healthScore.grade }}</span>
+              </div>
+              <div class="health-score-title-group">
+                <span class="health-score-title">{{ t('dashboard.healthScore.title') }}</span>
+                <span class="health-score-subtitle">
+                  {{ t('dashboard.healthScore.lowStockSubtitle', { lowCount: healthScore.low_stock_count, totalCount: healthScore.total_items }) }}
+                </span>
+              </div>
+            </div>
+            <div class="health-score-factors">
+              <div v-for="factor in healthScore.factors" :key="factor.label" class="health-score-factor">
+                <div class="health-score-factor-header">
+                  <span class="health-score-factor-label">{{ translateHealthFactor(factor.label) }}</span>
+                  <span class="health-score-factor-value">{{ factor.value }}</span>
+                </div>
+                <div class="health-score-factor-bar">
+                  <div class="health-score-factor-progress" :style="{ width: factor.value + '%' }"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Key Performance Indicators -->
       <div class="kpi-section">
         <h3 class="section-title">{{ t('dashboard.kpi.title') }}</h3>
@@ -319,6 +352,11 @@ export default {
     const allOrders = ref([])
     const inventoryItems = ref([])
 
+    // Inventory Health Score
+    const healthScore = ref({ score: 0, grade: '', factors: [], low_stock_count: 0, total_items: 0 })
+    const healthScoreLoading = ref(true)
+    const healthScoreError = ref(null)
+
     // Modal state
     const showProductModal = ref(false)
     const selectedProduct = ref(null)
@@ -581,6 +619,34 @@ export default {
       }
     }
 
+    const loadHealthScore = async () => {
+      try {
+        healthScoreLoading.value = true
+        healthScoreError.value = null
+        healthScore.value = await api.getInventoryHealthScore()
+      } catch (err) {
+        healthScoreError.value = 'Failed to load inventory health score: ' + err.message
+      } finally {
+        healthScoreLoading.value = false
+      }
+    }
+
+    const healthScoreGradeClass = computed(() => {
+      const grade = healthScore.value.grade
+      if (grade === 'A' || grade === 'B') return 'good'
+      if (grade === 'C') return 'warning'
+      return 'bad'
+    })
+
+    const translateHealthFactor = (label) => {
+      const factorMap = {
+        'Stock Coverage': t('dashboard.healthScore.factors.stockCoverage'),
+        'Order Fulfillment': t('dashboard.healthScore.factors.orderFulfillment'),
+        'Backlog Severity': t('dashboard.healthScore.factors.backlogSeverity')
+      }
+      return factorMap[label] || label
+    }
+
     const calculatePercentage = (value, goal) => {
       return ((value / goal) * 100).toFixed(2)
     }
@@ -678,12 +744,18 @@ export default {
     })
 
     onMounted(loadData)
+    onMounted(loadHealthScore)
 
     return {
       t,
       loading,
       error,
       summary,
+      healthScore,
+      healthScoreLoading,
+      healthScoreError,
+      healthScoreGradeClass,
+      translateHealthFactor,
       ordersData,
       fillRate,
       statusData,
@@ -737,6 +809,136 @@ export default {
 .header-meta {
   font-size: 0.813rem;
   color: #64748b;
+}
+
+.health-score-section {
+  margin-bottom: 1.5rem;
+}
+
+.health-score-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.health-score-loading,
+.health-score-error {
+  padding: 1rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.health-score-content {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.health-score-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.health-score-number-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.health-score-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+}
+
+.health-score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.health-score-badge.good {
+  background: #d1fae5;
+  color: #10b981;
+}
+
+.health-score-badge.warning {
+  background: #fef3c7;
+  color: #f59e0b;
+}
+
+.health-score-badge.bad {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.health-score-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.health-score-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.health-score-subtitle {
+  font-size: 0.813rem;
+  color: #64748b;
+}
+
+.health-score-factors {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+.health-score-factor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.health-score-factor-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.813rem;
+}
+
+.health-score-factor-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.health-score-factor-value {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.health-score-factor-bar {
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.health-score-factor-progress {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 3px;
+  transition: width 0.6s ease;
 }
 
 .kpi-section {
