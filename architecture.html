@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Catalyst Components — System Architecture</title>
+<style>
+  :root {
+    --ink: #0f172a;
+    --muted: #64748b;
+    --line: #e2e8f0;
+    --blue: #2563eb;
+    --green: #16a34a;
+    --amber: #d97706;
+    --bg: #f8fafc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 40px 24px;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { font-size: 18px; margin: 40px 0 16px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  .diagram {
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .box {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    flex: 1;
+    min-width: 220px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .box h3 { margin: 0 0 8px; font-size: 15px; }
+  .box .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  .tag.frontend { background: #dbeafe; color: var(--blue); }
+  .tag.backend { background: #dcfce7; color: var(--green); }
+  .tag.data { background: #fef3c7; color: var(--amber); }
+  .box ul { margin: 0; padding-left: 18px; font-size: 13px; color: #334155; }
+  .box ul li { margin-bottom: 4px; }
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: var(--muted);
+    min-width: 30px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; }
+  code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+  .flow-steps { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+  .flow-steps div { padding: 8px 12px; background: white; border: 1px solid var(--line); border-radius: 6px; }
+  .pages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+  .pages .page { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 13px; }
+  .pages .page b { display: block; margin-bottom: 2px; }
+  .pages .page span { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Catalyst Components — System Architecture</h1>
+  <div class="subtitle">Factory Inventory Management System — Vue 3 SPA + FastAPI backend, in-memory JSON data</div>
+
+  <h2>System Overview</h2>
+  <div class="diagram">
+    <div class="box">
+      <span class="tag frontend">Frontend</span>
+      <h3>Vue 3 SPA (port 3000)</h3>
+      <ul>
+        <li>Vite dev server</li>
+        <li>Composition API</li>
+        <li>vue-router (6 views)</li>
+        <li>axios HTTP client (<code>api.js</code>)</li>
+        <li>i18n: en / ja locales</li>
+      </ul>
+    </div>
+    <div class="arrow">&#8596;</div>
+    <div class="box">
+      <span class="tag backend">Backend</span>
+      <h3>FastAPI (port 8001)</h3>
+      <ul>
+        <li><code>main.py</code> — REST endpoints</li>
+        <li>Pydantic response models</li>
+        <li>Filtering: warehouse, category, status, month</li>
+        <li>CORS: allow all origins</li>
+      </ul>
+    </div>
+    <div class="arrow">&#8596;</div>
+    <div class="box">
+      <span class="tag data">Data</span>
+      <h3>In-memory JSON (no DB)</h3>
+      <ul>
+        <li><code>server/data/*.json</code></li>
+        <li>Loaded once via <code>mock_data.py</code></li>
+        <li>inventory, orders, demand, backlog, spending, POs</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Request / Data Flow</h2>
+  <div class="flow-steps">
+    <div>1. User interacts with a view (e.g. sets a filter in <code>FilterBar.vue</code>)</div>
+    <div>2. Composable <code>useFilters.js</code> updates shared filter state (reactive refs)</div>
+    <div>3. View calls a method on <code>client/src/api.js</code> (axios → <code>http://localhost:8001/api/...</code>)</div>
+    <div>4. FastAPI route in <code>main.py</code> applies <code>apply_filters()</code> / <code>filter_by_month()</code> over in-memory lists</div>
+    <div>5. Pydantic validates the response shape, JSON returned to the client</div>
+    <div>6. Vue stores raw data in refs (e.g. <code>allOrders</code>, <code>inventoryItems</code>); computed properties derive filtered/aggregated views</div>
+    <div>7. Template re-renders — KPI cards, tables, charts (custom SVG)</div>
+  </div>
+
+  <h2>Frontend Pages</h2>
+  <div class="pages">
+    <div class="page"><b>Overview</b><span>Dashboard.vue — KPIs, revenue chart, order health</span></div>
+    <div class="page"><b>Inventory</b><span>Inventory.vue — stock levels, reorder points</span></div>
+    <div class="page"><b>Orders</b><span>Orders.vue — order tracking, status filters</span></div>
+    <div class="page"><b>Finance</b><span>Spending.vue — spending analytics, transactions</span></div>
+    <div class="page"><b>Demand Forecast</b><span>Demand.vue — forecasted demand trends</span></div>
+    <div class="page"><b>Reports</b><span>Reports.vue — quarterly / monthly trend reports</span></div>
+  </div>
+
+  <h2>Key API Endpoints</h2>
+  <table>
+    <tr><th>Endpoint</th><th>Filters</th><th>Purpose</th></tr>
+    <tr><td><code>GET /api/inventory</code></td><td>warehouse, category</td><td>Stock levels per SKU</td></tr>
+    <tr><td><code>GET /api/orders</code></td><td>warehouse, category, status, month</td><td>Order tracking</td></tr>
+    <tr><td><code>GET /api/dashboard/summary</code></td><td>all filters</td><td>Aggregated KPIs for Overview</td></tr>
+    <tr><td><code>GET /api/demand</code></td><td>none</td><td>Demand forecast per item</td></tr>
+    <tr><td><code>GET /api/backlog</code></td><td>none</td><td>Backlog + purchase order status</td></tr>
+    <tr><td><code>GET /api/spending/*</code></td><td>none</td><td>Summary, monthly, category, transactions</td></tr>
+    <tr><td><code>GET /api/reports/quarterly</code>, <code>/monthly-trends</code></td><td>none</td><td>Computed report aggregates</td></tr>
+  </table>
+
+  <h2>Cross-Cutting Concerns</h2>
+  <div class="diagram">
+    <div class="box">
+      <h3>Filtering</h3>
+      <ul>
+        <li>4 filters: Time Period, Warehouse, Category, Order Status</li>
+        <li>Shared via <code>useFilters.js</code>, applied server-side via query params</li>
+        <li>Inventory has no time dimension — month filter not applicable</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>i18n</h3>
+      <ul>
+        <li><code>useI18n.js</code> composable + <code>locales/en.js</code>, <code>ja.js</code></li>
+        <li><code>LanguageSwitcher.vue</code> toggles locale</li>
+        <li>Nav labels use <code>t('nav.*')</code> — except Reports (hardcoded string)</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Auth</h3>
+      <ul>
+        <li><code>useAuth.js</code> — mock profile (John Doe)</li>
+        <li>No real authentication (demo app)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</body>
+</html>
